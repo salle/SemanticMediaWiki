@@ -146,16 +146,24 @@ class PageUpdater implements LoggerAwareInterface, DeferrableUpdate {
 	 * hasn't finished therefore use 'onTransactionIdle' to isolate the
 	 * execution.
 	 *
+	 * In case a transactionTicket is available or the transaction is executed
+	 * from the command line, do not wait on an idle process.
+	 *
+	 * A transaction ticket signals that commits can be done safely to the master
+	 * therefore waiting on an idle transaction is omitted as it may delay the
+	 * update process unnecessarily.
+	 *
 	 * @since 2.5
+	 *
+	 * @param string $transactionTicket
 	 */
-	public function waitOnTransactionIdle() {
+	public function waitOnTransactionIdle( $transactionTicket = '' ) {
 
-		if ( $this->connection === null ) {
-			$this->log( __METHOD__ . ' is missing an active connection therefore `onTransactionIdle` cannot be used.' );
+		if ( $this->isCommandLineMode || $transactionTicket !== '' || $this->connection === null ) {
 			return $this->onTransactionIdle = false;
 		}
 
-		$this->onTransactionIdle = !$this->isCommandLineMode;
+		$this->onTransactionIdle = true;
 	}
 
 	/**

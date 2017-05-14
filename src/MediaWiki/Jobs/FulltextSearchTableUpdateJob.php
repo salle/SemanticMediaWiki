@@ -33,9 +33,13 @@ class FulltextSearchTableUpdateJob extends JobBase {
 	public function run() {
 
 		$fulltextSearchTableFactory = new FulltextSearchTableFactory();
+		$store = ApplicationFactory::getInstance()->getStore( '\SMW\SQLStore\SQLStore' );
+
+		$connecton = $store->getConnection( 'mw.db' );
+		$transactionTicket = $connecton->getEmptyTransactionTicket( __METHOD__ );
 
 		$textByChangeUpdater = $fulltextSearchTableFactory->newTextByChangeUpdater(
-			ApplicationFactory::getInstance()->getStore( '\SMW\SQLStore\SQLStore' )
+			$store
 		);
 
 		$textByChangeUpdater->pushUpdatesFromJobParameters(
@@ -43,6 +47,10 @@ class FulltextSearchTableUpdateJob extends JobBase {
 		);
 
 		Hooks::run( 'SMW::Job::AfterFulltextSearchTableUpdateComplete', array( $this ) );
+
+		if ( $transactionTicket ) {
+			$connecton->commitAndWaitForReplication( __METHOD__, $transactionTicket );
+		}
 
 		return true;
 	}

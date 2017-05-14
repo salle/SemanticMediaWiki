@@ -263,6 +263,10 @@ class SQLStoreFactoryTest extends \PHPUnit_Framework_TestCase {
 			->method( 'getConnection' )
 			->will( $this->returnValue( $connection ) );
 
+		$this->store->expects( $this->once() )
+			->method( 'getOptions' )
+			->will( $this->returnValue( new Options() ) );
+
 		$instance = new SQLStoreFactory( $this->store );
 
 		$this->assertInstanceOf(

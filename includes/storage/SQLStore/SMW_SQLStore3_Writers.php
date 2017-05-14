@@ -148,6 +148,7 @@ class SMWSQLStore3Writers {
 		\Hooks::run( 'SMWSQLStore3::updateDataBefore', array( $this->store, $semanticData ) );
 
 		$subject = $semanticData->getSubject();
+		$this->store->getConnection()->beginAtomicTransaction( __METHOD__ );
 
 		$subobjects = $this->entitySubobjectListIterator->newListIteratorFor(
 			$subject
@@ -187,6 +188,8 @@ class SMWSQLStore3Writers {
 			$semanticData,
 			$this->propertyTableRowDiffer->getCompositePropertyTableDiff()
 		) );
+
+		$this->store->getConnection()->endAtomicTransaction( __METHOD__ );
 	}
 
 	/**
@@ -198,8 +201,6 @@ class SMWSQLStore3Writers {
 	 */
 	protected function doFlatDataUpdate( SMWSemanticData $data ) {
 		$subject = $data->getSubject();
-
-		$this->store->getConnection()->beginAtomicTransaction( __METHOD__ );
 
 		// Take care of redirects
 		$redirects = $data->getPropertyValues( new SMW\DIProperty( '_REDI' ) );
@@ -215,9 +216,6 @@ class SMWSQLStore3Writers {
 			// Stop here:
 			// * no support for annotations on redirect pages
 			// * updateRedirects takes care of deleting any previous data
-
-			$this->store->getConnection()->endAtomicTransaction( __METHOD__ );
-
 			return;
 		} else {
 			$this->updateRedirects(
@@ -277,8 +275,6 @@ class SMWSQLStore3Writers {
 
 		// Update caches (may be important if jobs are directly following this call)
 		$this->setSemanticDataCache( $sid, $data );
-
-		$this->store->getConnection()->endAtomicTransaction( __METHOD__ );
 
 		// TODO Make overall diff SMWSemanticData containers and return them.
 		// This can only be done here, since the $deleteRows/$insertRows
@@ -351,9 +347,10 @@ class SMWSQLStore3Writers {
 		}
 
 		$statsTable = $this->factory->newPropertyStatisticsTable();
-		$statsTable->waitOnTransactionIdle();
 
-		$statsTable->addToUsageCounts( $propertyUseIncrements );
+		$statsTable->addToUsageCounts(
+			$propertyUseIncrements
+		);
 	}
 
 	/**
@@ -598,7 +595,6 @@ class SMWSQLStore3Writers {
 			);
 
 			$statsTable = $this->factory->newPropertyStatisticsTable();
-			$statsTable->waitOnTransactionIdle();
 
 			$statsTable->addToUsageCount(
 				$this->store->getObjectIds()->getSMWPropertyID( new SMW\DIProperty( '_REDI' ) ),
@@ -945,7 +941,6 @@ class SMWSQLStore3Writers {
 
 		// *** Update reference count for _REDI property ***//
 		$statsTable = $this->factory->newPropertyStatisticsTable();
-		$statsTable->waitOnTransactionIdle();
 
 		$statsTable->addToUsageCount(
 			$this->store->getObjectIds()->getSMWPropertyID( new SMW\DIProperty( '_REDI' ) ),
@@ -969,6 +964,7 @@ class SMWSQLStore3Writers {
 			} );
 
 			$deferredCallableUpdate->setOrigin( __METHOD__ . ' for ' . $title->getPrefixedDBKey() );
+			$deferredCallableUpdate->commitWithTransactionTicket();
 			$deferredCallableUpdate->pushUpdate();
 		}
 
@@ -978,6 +974,7 @@ class SMWSQLStore3Writers {
 		} );
 
 		$deferredCallableUpdate->setOrigin( __METHOD__ . ' for ' . $title->getPrefixedDBKey() );
+		$deferredCallableUpdate->commitWithTransactionTicket();
 		$deferredCallableUpdate->pushUpdate();
 	}
 

@@ -397,18 +397,20 @@ class ParserData {
 
 		DeferredCallableUpdate::releasePendingUpdates();
 
-		$deferredCallableUpdate = $applicationFactory->newDeferredCallableUpdate( function() use( $storeUpdater ) {
+		$deferredCallableUpdate = $applicationFactory->newDeferredCallableUpdate( function( $transactionTicket = false ) use( $storeUpdater ) {
+			$storeUpdater->setTransactionTicket( $transactionTicket );
 			$storeUpdater->doUpdate();
 		} );
 
 		$deferredCallableUpdate->setOrigin(
-			__METHOD__ . ( $this->origin !== '' ? ' from ' . $this->origin : '' ) . ': ' . $this->semanticData->getSubject()->getHash()
+			__METHOD__ . ' [' . ( $this->origin !== '' ? $this->origin . ':' : '' ) . $this->semanticData->getSubject()->getHash() . ']'
 		);
 
 		$deferredCallableUpdate->enabledDeferredUpdate(
 			$enabledDeferredUpdate
 		);
 
+		//$deferredCallableUpdate->commitWithTransactionTicket();
 		$deferredCallableUpdate->pushUpdate();
 
 		return true;

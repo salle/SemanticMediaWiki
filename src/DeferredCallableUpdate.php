@@ -74,6 +74,11 @@ class DeferredCallableUpdate implements DeferrableUpdate, LoggerAwareInterface {
 	private static $queueList = array();
 
 	/**
+	 * @var string|boolean
+	 */
+	private $transactionTicket = false;
+
+	/**
 	 * @since 2.4
 	 *
 	 * @param Closure $callback
@@ -157,8 +162,26 @@ class DeferredCallableUpdate implements DeferrableUpdate, LoggerAwareInterface {
 	}
 
 	/**
+	 * It tries to fetch a transactionTicket to assert whether transaction writes
+	 * are active or not and if available will process Database::commitAndWaitForReplication
+	 * during DeferredCallableUpdate::doUpdate to safely post commits to the
+	 * master.
+	 *
+	 * @since 3.0
+	 */
+	public function commitWithTransactionTicket() {
+
+		if ( $this->connection === null ) {
+			$this->log( __METHOD__ . ' is missing an active connection therefore `getEmptyTransactionTicket` cannot be used.' );
+			return $this->transactionTicket = false;
+		}
+
+		$this->transactionTicket = $this->connection->getEmptyTransactionTicket( $this->origin );
+	}
+
+	/**
 	 * @note Set a fingerprint allowing it to track and detect duplicate update
-	 * requests while being unprocessed.
+	 * requests while yet being pending or unprocessed.
 	 *
 	 * @since 2.5
 	 *
@@ -206,24 +229,37 @@ class DeferredCallableUpdate implements DeferrableUpdate, LoggerAwareInterface {
 	 */
 	public function doUpdate() {
 
+		$msg = $this->origin . ' doUpdate';
+
 		if ( $this->onTransactionIdle ) {
-			return $this->connection->onTransactionIdle( function() {
-				$this->log( $this->origin . ' doUpdate (onTransactionIdle)' );
+			return $this->connection->onTransactionIdle( function() use( $msg ) {
+				$this->log( $msg . ' (onTransactionIdle)' );
 				$this->onTransactionIdle = false;
 				$this->doUpdate();
 			} );
 		}
 
-		$this->log( $this->origin . ' doUpdate' . ( $this->fingerprint ? ' (' . $this->fingerprint . ')' : '' ) );
+		$msg .= $this->fingerprint ? ' (fingerprint: ' . $this->fingerprint . ')' : '';
+		$msg .= $this->transactionTicket ? ' (transactionTicket: ' . $this->transactionTicket . ')' : '';
 
-		call_user_func( $this->callback );
+		$this->log( $msg );
+
+		call_user_func( $this->callback, $this->transactionTicket );
 		unset( self::$queueList[$this->fingerprint] );
+
+		if ( $this->transactionTicket ) {
+			$this->connection->commitAndWaitForReplication( $this->origin, $this->transactionTicket );
+		}
 	}
 
 	/**
 	 * @since 2.5
 	 */
 	public function pushUpdate() {
+
+		if ( $this->transactionTicket ) {
+			$this->log( $this->origin . ' (transactionTicket: ' . $this->transactionTicket . ')' );
+		}
 
 		if ( $this->fingerprint !== null && isset( self::$queueList[$this->fingerprint] ) ) {
 			$this->log( $this->origin . ' (fingerprint: ' . $this->fingerprint .' is already listed therefore skip)' );

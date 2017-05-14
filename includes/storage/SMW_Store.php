@@ -34,6 +34,11 @@ use SMW\Utils\Timer;
 abstract class Store implements QueryEngine {
 
 	/**
+	 * Identifies a possible transaction ticket from an update process
+	 */
+	const TRANSACTION_TICKET = 'transaction.ticket';
+
+	/**
 	 * @var boolean
 	 */
 	private $updateJobsEnabledState = true;
@@ -199,7 +204,9 @@ abstract class Store implements QueryEngine {
 	 */
 	public function updateData( SemanticData $semanticData ) {
 
-		if ( !$this->getOptions()->get( 'smwgSemanticsEnabled' ) ) {
+		$options = $this->getOptions();
+
+		if ( !$options->safeGet( 'smwgSemanticsEnabled' ) ) {
 			return;
 		}
 
@@ -226,12 +233,14 @@ abstract class Store implements QueryEngine {
 
 		$pageUpdater = $applicationFactory->newPageUpdater();
 
-		if ( !$this->getOptions()->get( 'smwgAutoRefreshSubject' ) || !$pageUpdater->canUpdate() ) {
+		if ( !$options->safeGet( 'smwgAutoRefreshSubject' ) || !$pageUpdater->canUpdate() ) {
 			return;
 		}
 
+		$transactionTicket = $options->safeGet( self::TRANSACTION_TICKET );
+
 		$pageUpdater->addPage( $subject->getTitle() );
-		$pageUpdater->waitOnTransactionIdle();
+		$pageUpdater->waitOnTransactionIdle( $transactionTicket );
 		$pageUpdater->markAsPending();
 		$pageUpdater->setOrigin( __METHOD__ );
 
@@ -240,7 +249,8 @@ abstract class Store implements QueryEngine {
 		$pageUpdater->pushUpdate();
 
 		$applicationFactory->getMediaWikiLogger()->info(
-			__METHOD__ . ' (procTime in sec: '. Timer::getElapsedTime( __METHOD__, 5 ) . ')'
+			__METHOD__ . ' (procTime in sec: '. Timer::getElapsedTime( __METHOD__, 5 ) .
+			( $transactionTicket ? ', transactionTicket: '. $transactionTicket : '' ) . ')'
 		);
 	}
 

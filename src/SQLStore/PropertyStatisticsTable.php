@@ -83,10 +83,24 @@ class PropertyStatisticsTable implements PropertyStatisticsStore, LoggerAwareInt
 	}
 
 	/**
+	 * In case a transactionTicket is available or the transaction is executed
+	 * from the command line, do not wait on an idle process.
+	 *
+	 * A transaction ticket signals that commits can be done safely to the master
+	 * therefore waiting on an idle transaction is omitted as it may delay the
+	 * update process unnecessarily.
+	 *
 	 * @since 2.5
+	 *
+	 * @param string $transactionTicket
 	 */
-	public function waitOnTransactionIdle() {
-		$this->onTransactionIdle = !$this->isCommandLineMode;
+	public function waitOnTransactionIdle( $transactionTicket = '' ) {
+
+		if ( $this->isCommandLineMode || $transactionTicket !== '' ) {
+			return $this->onTransactionIdle = false;
+		}
+
+		$this->onTransactionIdle = true;
 	}
 
 	/**

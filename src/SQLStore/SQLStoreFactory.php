@@ -396,7 +396,7 @@ class SQLStoreFactory {
 		}
 
 		$installer->isFromExtensionSchemaUpdate(
-			( $options->has( 'isFromExtensionSchemaUpdate' ) ? $options->get( 'isFromExtensionSchemaUpdate' ) : false )
+			$options->safeGet( 'isFromExtensionSchemaUpdate', false )
 		);
 
 		return $installer;
@@ -447,7 +447,7 @@ class SQLStoreFactory {
 
 		$propertyStatisticsTable = new PropertyStatisticsTable(
 			$this->store->getConnection( 'mw.db' ),
-			SMWSQLStore3::PROPERTY_STATISTICS_TABLE
+			SQLStore::PROPERTY_STATISTICS_TABLE
 		);
 
 		$propertyStatisticsTable->setLogger(
@@ -456,6 +456,10 @@ class SQLStoreFactory {
 
 		$propertyStatisticsTable->isCommandLineMode(
 			$GLOBALS['wgCommandLineMode']
+		);
+
+		$propertyStatisticsTable->waitOnTransactionIdle(
+			$this->store->getOptions()->safeGet( SQLStore::TRANSACTION_TICKET )
 		);
 
 		return $propertyStatisticsTable;

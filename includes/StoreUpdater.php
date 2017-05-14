@@ -53,6 +53,15 @@ class StoreUpdater {
 	}
 
 	/**
+	 * @since 3.0
+	 *
+	 * @return string|boolean
+	 */
+	public function setTransactionTicket( $transactionTicket ) {
+		$this->store->getOptions()->set( Store::TRANSACTION_TICKET, $transactionTicket );
+	}
+
+	/**
 	 * @since 1.9
 	 *
 	 * @return DIWikiPage
@@ -94,6 +103,7 @@ class StoreUpdater {
 		}
 
 		$this->doPerformUpdate();
+		$this->setTransactionTicket( false );
 
 		return true;
 	}

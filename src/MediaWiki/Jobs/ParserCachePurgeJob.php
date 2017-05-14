@@ -67,7 +67,11 @@ class ParserCachePurgeJob extends JobBase {
 
 		$this->pageUpdater = $this->applicationFactory->newPageUpdater();
 		$this->store = $this->applicationFactory->getStore();
+
 		$logger = $this->applicationFactory->getMediaWikiLogger();
+		$connection = $this->store->getConnection( 'mw.db' );
+
+		$transactionTicket = $connection->getEmptyTransactionTicket( __METHOD__ );
 
 		if ( $this->hasParameter( 'limit' ) ) {
 			$this->limit = $this->getParameter( 'limit' );
@@ -86,11 +90,20 @@ class ParserCachePurgeJob extends JobBase {
 
 		$this->pageUpdater->addPage( $this->getTitle() );
 		$this->pageUpdater->asPoolPurge();
+
+		$this->pageUpdater->waitOnTransactionIdle( $transactionTicket );
 		$this->pageUpdater->doPurgeParserCache();
 
 		Hooks::run( 'SMW::Job::AfterParserCachePurgeComplete', array( $this ) );
 
-		$logger->info( __METHOD__ . ' (procTime in sec: ' . Timer::getElapsedTime( __METHOD__, 7 ) . ')' );
+		if ( $transactionTicket ) {
+			$connection->commitAndWaitForReplication( __METHOD__, $transactionTicket );
+		}
+
+		$logger->info(
+			__METHOD__ . ' (procTime in sec: ' . Timer::getElapsedTime( __METHOD__, 7 ) .
+			( $transactionTicket ? ", $transactionTicket" : '' ) . ')'
+		);
 
 		return true;
 	}
