@@ -5,6 +5,7 @@ namespace SMW\Tests\ParserFunctions;
 use ParserOutput;
 use SMW\ApplicationFactory;
 use SMW\ParserFunctions\ShowParserFunction;
+use SMW\ParserFunctions\AskParserFunction;
 use SMW\Tests\TestEnvironment;
 use Title;
 
@@ -54,7 +55,7 @@ class ShowParserFunctionTest extends \PHPUnit_Framework_TestCase {
 
 		$this->assertInstanceOf(
 			'\SMW\ParserFunctions\ShowParserFunction',
-			new ShowParserFunction( $parserData, $messageFormatter, $circularReferenceGuard )
+			new ShowParserFunction( new AskParserFunction( $parserData, $messageFormatter, $circularReferenceGuard ) )
 		);
 	}
 
@@ -77,9 +78,11 @@ class ShowParserFunctionTest extends \PHPUnit_Framework_TestCase {
 			->getMock();
 
 		$instance = new ShowParserFunction(
-			$parserData,
-			$messageFormatter,
-			$circularReferenceGuard
+			new AskParserFunction(
+				$parserData,
+				$messageFormatter,
+				$circularReferenceGuard
+			)
 		);
 
 		$result = $instance->parse( $params );
@@ -113,9 +116,11 @@ class ShowParserFunctionTest extends \PHPUnit_Framework_TestCase {
 			->getMock();
 
 		$instance = new ShowParserFunction(
-			$parserData,
-			$messageFormatter,
-			$circularReferenceGuard
+			new AskParserFunction(
+				$parserData,
+				$messageFormatter,
+				$circularReferenceGuard
+			)
 		);
 
 		$instance->isQueryDisabled();
@@ -140,9 +145,11 @@ class ShowParserFunctionTest extends \PHPUnit_Framework_TestCase {
 			->getMock();
 
 		$instance = new ShowParserFunction(
-			$parserData,
-			$messageFormatter,
-			$circularReferenceGuard
+			new AskParserFunction(
+				$parserData,
+				$messageFormatter,
+				$circularReferenceGuard
+			)
 		);
 
 		$instance->parse( $params );
@@ -173,9 +180,11 @@ class ShowParserFunctionTest extends \PHPUnit_Framework_TestCase {
 			->getMock();
 
 		$instance = new ShowParserFunction(
-			$parserData,
-			$messageFormatter,
-			$circularReferenceGuard
+			new AskParserFunction(
+				$parserData,
+				$messageFormatter,
+				$circularReferenceGuard
+			)
 		);
 
 		// #2 [[..]] is not acknowledged therefore displays an error message

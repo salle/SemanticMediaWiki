@@ -95,6 +95,14 @@ class ParserFunctionFactory {
 			$circularReferenceGuard
 		);
 
+		$askParserFunction->setExpensiveThreshold(
+			ApplicationFactory::getInstance()->getSettings()->get( 'smwgQExpensiveThreshold' )
+		);
+
+		$askParserFunction->setExpensiveExecutionLimit(
+			ApplicationFactory::getInstance()->getSettings()->get( 'smwgQExpensiveExecutionLimit' )
+		);
+
 		return $askParserFunction;
 	}
 
@@ -107,26 +115,8 @@ class ParserFunctionFactory {
 	 */
 	public function newShowParserFunction( Parser $parser ) {
 
-		$circularReferenceGuard = new CircularReferenceGuard( 'show-parser' );
-		$circularReferenceGuard->setMaxRecursionDepth( 2 );
-
-		$parserData = ApplicationFactory::getInstance()->newParserData(
-			$parser->getTitle(),
-			$parser->getOutput()
-		);
-
-		if ( isset( $parser->getOptions()->smwAskNoDependencyTracking ) ) {
-			$parserData->setOption( $parserData::NO_QUERY_DEPENDENCY_TRACE, $parser->getOptions()->smwAskNoDependencyTracking );
-		}
-
-		$messageFormatter = new MessageFormatter(
-			$parser->getTargetLanguage()
-		);
-
 		$showParserFunction = new ShowParserFunction(
-			$parserData,
-			$messageFormatter,
-			$circularReferenceGuard
+			$this->newAskParserFunction( $parser )
 		);
 
 		return $showParserFunction;

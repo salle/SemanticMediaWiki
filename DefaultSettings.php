@@ -472,6 +472,30 @@ return array(
 	##
 
 	###
+	# Threshold of seconds that define an expensive #ask/#show function
+	#
+	# The threshold defines as to when a #ask is classified as expensive and will
+	# count towards the $smwgQExpensiveExecutionLimit setting.
+	#
+	# @since 3.0
+	# @default 10
+	##
+	'smwgQExpensiveThreshold' => 10,
+	##
+
+	###
+	# Limit of expensive #ask/#show functions
+	#
+	# The limit will count all classified #ask parser functions and restricts
+	# further use on pages that exceeds that limit.
+	#
+	# @since 3.0
+	# @default false (== no limit)
+	##
+	'smwgQExpensiveExecutionLimit' => false,
+	##
+
+	###
 	# The below setting defines which query features should be available by
 	# default.
 	#

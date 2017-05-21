@@ -68,6 +68,16 @@ class AskParserFunction {
 	private $noTrace = false;
 
 	/**
+	 * @var integer
+	 */
+	private $expensiveThreshold = 10;
+
+	/**
+	 * @var integer|boolean
+	 */
+	private $expensiveExecutionLimit = false;
+
+	/**
 	 * @var ApplicationFactory
 	 */
 	private $applicationFactory;
@@ -95,6 +105,24 @@ class AskParserFunction {
 	public function setShowMode( $mode ) {
 		$this->showMode = $mode;
 		return $this;
+	}
+
+	/**
+	 * @since 3.0
+	 *
+	 * @param integer $expensiveThreshold
+	 */
+	public function setExpensiveThreshold( $expensiveThreshold ) {
+		$this->expensiveThreshold = $expensiveThreshold;
+	}
+
+	/**
+	 * @since 3.0
+	 *
+	 * @param integer|boolean $expensiveExecutionLimit
+	 */
+	public function setExpensiveExecutionLimit( $expensiveExecutionLimit ) {
+		$this->expensiveExecutionLimit = $expensiveExecutionLimit;
 	}
 
 	/**
@@ -129,8 +157,8 @@ class AskParserFunction {
 
 		// Do we still need this?
 		// Reference found in SRF_Exhibit.php, SRF_Ploticus.php, SRF_Timeline.php, SRF_JitGraph.php
-		global $smwgIQRunningNumber;
-		$smwgIQRunningNumber++;
+		$GLOBALS['smwgIQRunningNumber']++;
+		$result = '';
 
 		$this->applicationFactory = ApplicationFactory::getInstance();
 
@@ -221,6 +249,10 @@ class AskParserFunction {
 			$contextPage
 		);
 
+		if ( ( $result = $this->hasReachedExpensiveExecutionLimit( $query ) ) !== false ) {
+			return $result;
+		}
+
 		$query->setOption( Query::PROC_CONTEXT, 'AskParserFunction' );
 		$query->setOption( Query::NO_DEPENDENCY_TRACE, $this->noTrace );
 
@@ -254,6 +286,8 @@ class AskParserFunction {
 
 		$this->circularReferenceGuard->unmark( $queryHash );
 
+		$this->incrementExpensiveFunctionExecutionCount( $query );
+
 		// In case of an query error add a marker to the subject for discoverability
 		// of a failed query, don't bail-out as we can have results and errors
 		// at the same time
@@ -265,6 +299,43 @@ class AskParserFunction {
 		);
 
 		return $result;
+	}
+
+	private function hasReachedExpensiveExecutionLimit( $query ) {
+
+		if ( $this->expensiveExecutionLimit === false ) {
+			return false;
+		}
+
+		if ( $query->getLimit() == 0 ) {
+			return false;
+		}
+
+		if ( $this->parserData->getOutput()->getExtensionData( 'smw-expensiveparsercount' ) < $this->expensiveExecutionLimit ) {
+			return false;
+		}
+
+		// Adding to error in order to be discoverable
+		$this->addProcessingError( array( 'smw-parser-function-expensive-execution-limit' ) );
+
+		return $this->messageFormatter->addFromKey( 'smw-parser-function-expensive-execution-limit' )->getHtml();
+	}
+
+	private function incrementExpensiveFunctionExecutionCount( $query ) {
+
+		if ( $this->expensiveExecutionLimit === false || $query->getLimit() == 0 || $query->getOption( Query::PROC_QUERY_TIME ) < $this->expensiveThreshold  ) {
+			return;
+		}
+
+		$expensiveCount = $this->parserData->getOutput()->getExtensionData( 'smw-expensiveparsercount' );
+
+		if ( !is_int( $expensiveCount ) ) {
+			$expensiveCount = 0;
+		}
+
+		$expensiveCount++;
+
+		$this->parserData->getOutput()->setExtensionData( 'smw-expensiveparsercount', $expensiveCount );
 	}
 
 	private function addQueryProfile( $query, $format ) {
